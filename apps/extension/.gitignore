@@ -1,0 +1,21 @@
+# Extension build output
+dist/
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Vite
+.vite/
+
+# Chrome extension zip packages
+#*.zip
+#*.crx
+
+# Other ignore files
+.DS_Store
+Thumbs.db
+.env
+
+# TypeScript
+*.tsbuildinfo
