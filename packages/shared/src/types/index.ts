@@ -95,6 +95,7 @@ export type ExtensionMessageType =
   | 'TIMER_RESUME'
   | 'TIMER_STOP'
   | 'TIMER_RESET'
+  | 'TIMER_SET_DURATION'
   | 'LOG_DISTRACTION'
   | 'GET_TIMER_STATE'
   | 'SYNC_STATE';

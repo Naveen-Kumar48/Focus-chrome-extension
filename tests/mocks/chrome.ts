@@ -69,6 +69,13 @@ export function setupChromeMock() {
       onStartup: {
         addListener: vi.fn()
       }
+    },
+    action: {
+      setBadgeText: vi.fn(),
+      setBadgeBackgroundColor: vi.fn()
+    },
+    notifications: {
+      create: vi.fn()
     }
   };
 
