@@ -3,7 +3,8 @@ import {
   ExtensionMessage,
   MessageResponse,
   ActiveTimerState,
-  CompletedSessionRecord
+  CompletedSessionRecord,
+  DistractionAttemptRecord
 } from '@focusflow/shared';
 import {
   startTimer,
@@ -16,6 +17,10 @@ import {
   calculateRemainingSeconds,
   formatRemainingToBadge
 } from '../services/timerEngine';
+import {
+  activateBlockingRules,
+  deactivateBlockingRules
+} from '../services/blockerEngine';
 
 export const ALARM_TIMER_KEY = 'focusflow-timer-alarm';
 
@@ -39,6 +44,27 @@ export async function updateToolbarBadge(timer: ActiveTimerState) {
 }
 
 /**
+ * Synchronizes website blocking rules with current timer state.
+ */
+export async function syncBlockingRules(timer: ActiveTimerState) {
+  try {
+    if (timer.status === 'running') {
+      const profiles = await storageService.get('profiles');
+      const activeProfileId = (await storageService.get('activeProfileId')) || timer.profileId;
+      const profile = profiles?.[activeProfileId] || profiles?.[timer.profileId];
+
+      if (profile) {
+        await activateBlockingRules(profile);
+      }
+    } else {
+      await deactivateBlockingRules();
+    }
+  } catch (err) {
+    console.error('[FocusFlow] Error syncing blocking rules:', err);
+  }
+}
+
+/**
  * Checks and reconciles timer status upon service worker startup or wakeup.
  */
 async function reconcileTimerState() {
@@ -50,7 +76,6 @@ async function reconcileTimerState() {
       console.log('[FocusFlow] Timer expired while service worker was suspended/inactive.');
       await storageService.set('activeTimer', nextState);
 
-      // Append completed session to session history
       const sessions = (await storageService.get('sessions')) || [];
       const sessionWithId: CompletedSessionRecord = {
         ...(completedRecord as CompletedSessionRecord),
@@ -61,8 +86,10 @@ async function reconcileTimerState() {
 
       await chrome.alarms.clear(ALARM_TIMER_KEY);
       await updateToolbarBadge(nextState);
+      await syncBlockingRules(nextState);
     } else {
       await updateToolbarBadge(timer);
+      await syncBlockingRules(timer);
     }
   } catch (err) {
     console.error('[FocusFlow] Error reconciling timer state:', err);
@@ -75,6 +102,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   try {
     const initialState = await storageService.initialize();
     await updateToolbarBadge(initialState.activeTimer);
+    await syncBlockingRules(initialState.activeTimer);
   } catch (err) {
     console.error('[FocusFlow] Error during installation initialization:', err);
   }
@@ -92,7 +120,6 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     console.log('[FocusFlow] Timer alarm triggered!');
     await reconcileTimerState();
 
-    // Trigger notification if enabled
     try {
       const settings = await storageService.get('settings');
       if (settings?.notificationsEnabled && chrome.notifications) {
@@ -110,7 +137,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   }
 });
 
-// Incoming message handler for Popup and Options
+// Incoming message handler for Popup, Options, and Blocked Page
 chrome.runtime.onMessage.addListener(
   (
     message: ExtensionMessage,
@@ -141,6 +168,7 @@ chrome.runtime.onMessage.addListener(
               await chrome.alarms.create(ALARM_TIMER_KEY, { when: updated.targetEndTime });
             }
             await updateToolbarBadge(updated);
+            await syncBlockingRules(updated);
             sendResponse({ success: true, data: updated });
             break;
           }
@@ -150,6 +178,7 @@ chrome.runtime.onMessage.addListener(
             await storageService.set('activeTimer', updated);
             await chrome.alarms.clear(ALARM_TIMER_KEY);
             await updateToolbarBadge(updated);
+            await syncBlockingRules(updated);
             sendResponse({ success: true, data: updated });
             break;
           }
@@ -161,6 +190,7 @@ chrome.runtime.onMessage.addListener(
               await chrome.alarms.create(ALARM_TIMER_KEY, { when: updated.targetEndTime });
             }
             await updateToolbarBadge(updated);
+            await syncBlockingRules(updated);
             sendResponse({ success: true, data: updated });
             break;
           }
@@ -181,6 +211,7 @@ chrome.runtime.onMessage.addListener(
             }
 
             await updateToolbarBadge(nextState);
+            await syncBlockingRules(nextState);
             sendResponse({ success: true, data: nextState });
             break;
           }
@@ -190,6 +221,7 @@ chrome.runtime.onMessage.addListener(
             await storageService.set('activeTimer', updated);
             await chrome.alarms.clear(ALARM_TIMER_KEY);
             await updateToolbarBadge(updated);
+            await syncBlockingRules(updated);
             sendResponse({ success: true, data: updated });
             break;
           }
@@ -200,6 +232,23 @@ chrome.runtime.onMessage.addListener(
             await storageService.set('activeTimer', updated);
             await updateToolbarBadge(updated);
             sendResponse({ success: true, data: updated });
+            break;
+          }
+
+          case 'LOG_DISTRACTION': {
+            const payload = message.payload as { domain: string };
+            if (payload && payload.domain) {
+              const attempts = (await storageService.get('distractionAttempts')) || [];
+              const newAttempt: DistractionAttemptRecord = {
+                id: `distract-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                sessionId: currentTimer.startedAt ? `session-${currentTimer.startedAt}` : 'idle',
+                domain: payload.domain,
+                timestamp: Date.now()
+              };
+              await storageService.set('distractionAttempts', [newAttempt, ...attempts]);
+              console.log(`[FocusFlow Analytics] Logged distraction attempt: ${payload.domain}`);
+            }
+            sendResponse({ success: true });
             break;
           }
 

@@ -5,7 +5,17 @@
   "description": "Boost productivity with smart website blocking, custom Pomodoro focus timers, and focus profiles.",
   "permissions": [
     "storage",
-    "alarms"
+    "alarms",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["blocked.html", "icons/*"],
+      "matches": ["<all_urls>"]
+    }
   ],
   "action": {
     "default_popup": "popup.html",

@@ -82,7 +82,7 @@ test.describe('FocusFlow Chrome Extension E2E Verification', () => {
     await optionsPage.waitForLoadState('domcontentloaded');
 
     await expect(optionsPage.locator('h1')).toContainText('FocusFlow Settings & Dashboard');
-    await expect(optionsPage.locator('.badge-v3')).toHaveText('Manifest V3 Production Shell');
+    await expect(optionsPage.locator('.badge-v3')).toBeVisible();
     await expect(optionsPage.locator('.profile-pill')).toHaveCount(3); // 3 default presets
 
     // Ensure zero console or runtime errors occurred

@@ -95,6 +95,86 @@ export class ChromeStorageService {
   }
 
   /**
+   * Adds a blocked domain to a specific profile
+   */
+  public async addBlockedDomain(profileId: string, domain: string): Promise<boolean> {
+    const profiles = await this.get('profiles');
+    if (!profiles || !profiles[profileId]) return false;
+
+    const currentList = profiles[profileId].blockedDomains || [];
+    if (currentList.includes(domain)) return false;
+
+    const updatedProfile = {
+      ...profiles[profileId],
+      blockedDomains: [...currentList, domain],
+      updatedAt: Date.now()
+    };
+
+    await this.set('profiles', {
+      ...profiles,
+      [profileId]: updatedProfile
+    });
+
+    return true;
+  }
+
+  /**
+   * Removes a blocked domain from a specific profile
+   */
+  public async removeBlockedDomain(profileId: string, domain: string): Promise<boolean> {
+    const profiles = await this.get('profiles');
+    if (!profiles || !profiles[profileId]) return false;
+
+    const currentList = profiles[profileId].blockedDomains || [];
+    const updatedList = currentList.filter((d) => d !== domain);
+
+    const updatedProfile = {
+      ...profiles[profileId],
+      blockedDomains: updatedList,
+      updatedAt: Date.now()
+    };
+
+    await this.set('profiles', {
+      ...profiles,
+      [profileId]: updatedProfile
+    });
+
+    return true;
+  }
+
+  /**
+   * Edits an existing blocked domain in a specific profile
+   */
+  public async editBlockedDomain(
+    profileId: string,
+    oldDomain: string,
+    newDomain: string
+  ): Promise<boolean> {
+    const profiles = await this.get('profiles');
+    if (!profiles || !profiles[profileId]) return false;
+
+    const currentList = profiles[profileId].blockedDomains || [];
+    const index = currentList.indexOf(oldDomain);
+    if (index === -1) return false;
+
+    const updatedList = [...currentList];
+    updatedList[index] = newDomain;
+
+    const updatedProfile = {
+      ...profiles[profileId],
+      blockedDomains: updatedList,
+      updatedAt: Date.now()
+    };
+
+    await this.set('profiles', {
+      ...profiles,
+      [profileId]: updatedProfile
+    });
+
+    return true;
+  }
+
+  /**
    * Clears all storage data and resets to defaults
    */
   public async resetToDefaults(): Promise<void> {

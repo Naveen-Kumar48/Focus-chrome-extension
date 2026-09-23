@@ -15,6 +15,7 @@
     "lint": "eslint .",
     "test": "npm run --workspaces --if-present test",
     "test:e2e": "playwright test",
+    "package:extension": "node scripts/package-extension.js",
     "build": "npm run --workspaces --if-present build"
   },
   "devDependencies": {

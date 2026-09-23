@@ -128,3 +128,10 @@ fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(filePath, buf);
   console.log(`Generated ${filePath} (${buf.length} bytes)`);
 });
+
+const storeEdgeDir = path.resolve('store-assets/edge');
+fs.mkdirSync(storeEdgeDir, { recursive: true });
+const logo300 = createPng(300);
+fs.writeFileSync(path.join(storeEdgeDir, 'store-logo-300.png'), logo300);
+console.log(`Generated Edge store logo 300x300 (${logo300.length} bytes)`);
+
