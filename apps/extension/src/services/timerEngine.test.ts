@@ -103,6 +103,15 @@ describe('Timer Engine Timestamp Mathematics', () => {
     expect(interruptedRecord?.actualDurationSeconds).toBe(600);
   });
 
+  it('resets a timer to idle state with default duration', () => {
+    const started = startTimer(INITIAL_TIMER_STATE, { durationSeconds: 1500 }, baseTime);
+    const reset = resetTimer(started, 1800);
+    expect(reset.status).toBe('idle');
+    expect(reset.durationSeconds).toBe(1800);
+    expect(reset.startedAt).toBeNull();
+    expect(reset.targetEndTime).toBeNull();
+  });
+
   it('allows changing duration only when idle', () => {
     const idle = INITIAL_TIMER_STATE;
     const changed = setTimerDuration(idle, 90 * 60);

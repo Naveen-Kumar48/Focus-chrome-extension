@@ -67,7 +67,8 @@ test.describe('FocusFlow Chrome Extension E2E Verification', () => {
 
     // Test button click interaction
     await popupPage.locator('#btn-start-focus').click();
-    await expect(popupPage.locator('#btn-start-focus')).toContainText('Pause Focus');
+    await expect(popupPage.locator('#btn-pause')).toBeVisible();
+    await expect(popupPage.locator('#btn-stop')).toBeVisible();
 
     // 3. Open and test Options page
     const optionsPage = await context.newPage();

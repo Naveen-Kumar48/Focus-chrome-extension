@@ -11,6 +11,11 @@ describe('Popup UI Component with Phase 2 Timer Engine', () => {
   it('renders presets and updates time display when presets are clicked', async () => {
     render(<Popup />);
 
+    // Wait for storage hydration to complete
+    await waitFor(() => {
+      expect(screen.getByText('0 minutes')).toBeDefined();
+    });
+
     expect(screen.getByText('FocusFlow')).toBeDefined();
     expect(screen.getByText('Ready to focus?')).toBeDefined();
     expect(screen.getByText('25:00')).toBeDefined();
@@ -38,6 +43,11 @@ describe('Popup UI Component with Phase 2 Timer Engine', () => {
   it('transitions through start -> pause -> resume -> reset states smoothly', async () => {
     render(<Popup />);
 
+    // Wait for storage hydration to complete
+    await waitFor(() => {
+      expect(screen.getByText('0 minutes')).toBeDefined();
+    });
+
     const startBtn = screen.getByRole('button', { name: /start focus/i });
     expect(startBtn).toBeDefined();
 
@@ -51,7 +61,7 @@ describe('Popup UI Component with Phase 2 Timer Engine', () => {
     });
 
     // 2. Pause timer
-    fireEvent.click(screen.getByRole('button', { name: /pause/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /pause/i }));
 
     // Should now show Resume and Reset buttons
     await waitFor(() => {
@@ -60,7 +70,7 @@ describe('Popup UI Component with Phase 2 Timer Engine', () => {
     });
 
     // 3. Reset timer back to idle
-    fireEvent.click(screen.getByRole('button', { name: /reset/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /reset/i }));
 
     // Should return to Start Focus button
     await waitFor(() => {
