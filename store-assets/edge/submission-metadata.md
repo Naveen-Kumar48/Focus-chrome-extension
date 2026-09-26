@@ -49,9 +49,9 @@ Empower your workday and take back control of your attention with FocusFlow.
 
 ## 2. Store Package & Assets
 
-* **Package File**: `store-assets/edge/focusflow-edge-v1.0.0.zip`
+* **Package File**: `store-assets/edge/focusflow-edge-v1.1.0.zip`
 * **Store Logo (300x300 PNG)**: `store-assets/edge/store-logo-300.png`
-* **Version**: `1.0.0`
+* **Version**: `1.1.0`
 * **Manifest Version**: `3`
 
 ---
