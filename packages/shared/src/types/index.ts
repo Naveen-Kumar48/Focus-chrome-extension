@@ -98,7 +98,9 @@ export type ExtensionMessageType =
   | 'TIMER_SET_DURATION'
   | 'LOG_DISTRACTION'
   | 'GET_TIMER_STATE'
-  | 'SYNC_STATE';
+  | 'SYNC_STATE'
+  | 'PURGE_OPEN_TABS'
+  | 'PLAY_AUDIO';
 
 export interface ExtensionMessage<T = unknown> {
   type: ExtensionMessageType;

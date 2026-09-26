@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { storageService } from '../storage/chromeStorage';
-import { FocusProfile, StorageSchema } from '@focusflow/shared';
+import {
+  FocusProfile,
+  StorageSchema,
+  UserSettings,
+  ActiveTimerState,
+  DEFAULT_SETTINGS,
+  INITIAL_TIMER_STATE
+} from '@focusflow/shared';
 import {
   normalizeDomain,
   getDomainDisplayName,
@@ -27,6 +34,8 @@ const QUICK_ADD_PRESETS = [
 export const Options: React.FC = () => {
   const [profiles, setProfiles] = useState<Record<string, FocusProfile>>({});
   const [activeProfileId, setActiveProfileId] = useState<string>('');
+  const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
+  const [activeTimer, setActiveTimer] = useState<ActiveTimerState>(INITIAL_TIMER_STATE);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [analytics, setAnalytics] = useState<ProductivitySummary>({
     todayFocusMinutes: 0,
@@ -49,7 +58,17 @@ export const Options: React.FC = () => {
     storageService.initialize().then((state: StorageSchema) => {
       setProfiles(state.profiles);
       setActiveProfileId(state.activeProfileId);
+      setSettings(state.settings || DEFAULT_SETTINGS);
+      setActiveTimer(state.activeTimer);
       setAnalytics(calculateProductivitySummary(state.sessions, state.distractionAttempts));
+    });
+
+    const unsubscribeSettings = storageService.subscribe('settings', (newSettings) => {
+      if (newSettings) setSettings(newSettings);
+    });
+
+    const unsubscribeTimer = storageService.subscribe('activeTimer', (newTimer) => {
+      if (newTimer) setActiveTimer(newTimer);
     });
 
     const unsubscribeProfiles = storageService.subscribe('profiles', (newProfiles) => {
@@ -71,6 +90,8 @@ export const Options: React.FC = () => {
     });
 
     return () => {
+      unsubscribeSettings();
+      unsubscribeTimer();
       unsubscribeProfiles();
       unsubscribeActiveProfile();
       unsubscribeSessions();
@@ -120,6 +141,10 @@ export const Options: React.FC = () => {
 
   // Remove domain
   const handleRemoveDomain = async (domain: string) => {
+    if (activeTimer.status === 'running' && settings.strictMode) {
+      showNotice('🔒 Strict Mode active: Cannot remove blocked domains during an active focus session.');
+      return;
+    }
     const success = await storageService.removeBlockedDomain(activeProfileId, domain);
     if (success) {
       showNotice(`Removed '${domain}' from blocked list.`);
@@ -187,7 +212,25 @@ export const Options: React.FC = () => {
     showNotice('Playing session completion chime.');
   };
 
+  const handleToggleStrictMode = async () => {
+    const updated: UserSettings = {
+      ...settings,
+      strictMode: !settings.strictMode
+    };
+    await storageService.set('settings', updated);
+    setSettings(updated);
+    showNotice(
+      updated.strictMode
+        ? '🔒 Strict Mode enabled — Anti-cancel challenge and blocklist locks are now active.'
+        : 'Strict Mode disabled.'
+    );
+  };
+
   const handleResetData = async () => {
+    if (activeTimer.status === 'running' && settings.strictMode) {
+      showNotice('🔒 Strict Mode active: Cannot reset database during an active focus session.');
+      return;
+    }
     if (
       window.confirm(
         'Are you sure you want to reset all local FocusFlow settings and data to defaults?'
@@ -197,6 +240,7 @@ export const Options: React.FC = () => {
       const fresh = await storageService.getAll();
       setProfiles(fresh.profiles);
       setActiveProfileId(fresh.activeProfileId);
+      setSettings(fresh.settings || DEFAULT_SETTINGS);
       setAnalytics(calculateProductivitySummary(fresh.sessions, fresh.distractionAttempts));
       showNotice('All data has been reset to defaults.');
     }
@@ -465,6 +509,47 @@ export const Options: React.FC = () => {
           <p className="card-subtitle">
             Configure sound effects, export your productivity logs, or manage local data.
           </p>
+
+          <div className="setting-row">
+            <div className="setting-info">
+              <h4>Strict Mode Enforcement 🔒</h4>
+              <p>
+                Lock focus sessions: disables canceling or pausing without challenge,
+                and locks blocked domains during active focus.
+              </p>
+            </div>
+            <button
+              className={settings.strictMode ? 'btn-danger' : 'btn-secondary'}
+              onClick={handleToggleStrictMode}
+              id="btn-toggle-strict-mode"
+            >
+              {settings.strictMode ? 'Enabled (Active)' : 'Enable Strict Mode'}
+            </button>
+          </div>
+
+          <div className="setting-row">
+            <div className="setting-info">
+              <h4>Active Tab Auto-Purge</h4>
+              <p>Scan all open browser windows and immediately redirect any matching blocked sites</p>
+            </div>
+            <button
+              className="btn-secondary"
+              onClick={async () => {
+                if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+                  try {
+                    const res = await chrome.runtime.sendMessage({ type: 'PURGE_OPEN_TABS' });
+                    const count = res?.data?.purgedCount ?? 0;
+                    showNotice(`Scanned open tabs: purged ${count} distracting tab(s).`);
+                  } catch {
+                    showNotice('Scanned open tabs.');
+                  }
+                }
+              }}
+              id="btn-purge-open-tabs"
+            >
+              Scan & Purge Tabs
+            </button>
+          </div>
 
           <div className="setting-row">
             <div className="setting-info">

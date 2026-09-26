@@ -1,13 +1,30 @@
 {
   "manifest_version": 3,
   "name": "FocusFlow — Focus Timer & Website Blocker",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Boost productivity with smart website blocking, custom Pomodoro focus timers, and focus profiles.",
   "permissions": [
     "storage",
     "alarms",
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    "tabs",
+    "offscreen"
   ],
+  "incognito": "spanning",
+  "commands": {
+    "toggle-focus": {
+      "suggested_key": {
+        "default": "Alt+Shift+F"
+      },
+      "description": "Start or pause focus timer"
+    },
+    "block-current-tab": {
+      "suggested_key": {
+        "default": "Alt+Shift+B"
+      },
+      "description": "Block the current website in active profile"
+    }
+  },
   "host_permissions": [
     "*://*/*"
   ],

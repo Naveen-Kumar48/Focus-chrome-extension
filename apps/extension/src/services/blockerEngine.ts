@@ -104,3 +104,86 @@ export async function deactivateBlockingRules(): Promise<void> {
 
   console.log(`[FocusFlow DNR] Cleared all dynamic blocking rules. Web access restored.`);
 }
+
+/**
+ * Checks if a given URL string matches any blocked domain for the profile,
+ * respecting allowlist exemptions.
+ */
+export function isUrlBlocked(
+  url: string,
+  blockedDomains: string[],
+  allowedDomains: string[] = []
+): boolean {
+  if (!url || typeof url !== 'string') return false;
+
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return false;
+    }
+    const hostname = parsed.hostname.toLowerCase();
+
+    // 1. Allowlist has higher priority
+    const isAllowed = allowedDomains.some((domain) => {
+      const clean = domain.toLowerCase().trim();
+      if (!clean) return false;
+      return hostname === clean || hostname.endsWith(`.${clean}`);
+    });
+    if (isAllowed) return false;
+
+    // 2. Blocklist check
+    return blockedDomains.some((domain) => {
+      const clean = domain.toLowerCase().trim();
+      if (!clean) return false;
+      return hostname === clean || hostname.endsWith(`.${clean}`);
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Interrogates all open browser tabs and forcibly redirects any tab currently visiting
+ * a blocked website to the FocusFlow blocked shield splash page.
+ */
+export async function purgeBlockedOpenTabs(profile: FocusProfile): Promise<number> {
+  if (
+    typeof chrome === 'undefined' ||
+    !chrome.tabs ||
+    !chrome.tabs.query ||
+    !chrome.tabs.update
+  ) {
+    return 0;
+  }
+
+  try {
+    const tabs = await chrome.tabs.query({});
+    let redirectedCount = 0;
+
+    for (const tab of tabs) {
+      if (
+        tab.id &&
+        tab.url &&
+        isUrlBlocked(tab.url, profile.blockedDomains, profile.allowedDomains)
+      ) {
+        try {
+          const domain = new URL(tab.url).hostname;
+          await chrome.tabs.update(tab.id, {
+            url: chrome.runtime.getURL(`blocked.html?domain=${encodeURIComponent(domain)}`)
+          });
+          redirectedCount++;
+        } catch (tabErr) {
+          console.debug('[FocusFlow DNR] Could not redirect tab:', tab.id, tabErr);
+        }
+      }
+    }
+
+    if (redirectedCount > 0) {
+      console.log(`[FocusFlow DNR] Purged and redirected ${redirectedCount} active tabs on blocked domains.`);
+    }
+    return redirectedCount;
+  } catch (err) {
+    console.debug('[FocusFlow DNR] Error querying or purging open tabs:', err);
+    return 0;
+  }
+}

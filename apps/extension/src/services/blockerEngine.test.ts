@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   compileProfileDnrRules,
   BLOCK_RULE_ID_BASE,
-  ALLOW_RULE_ID_BASE
+  ALLOW_RULE_ID_BASE,
+  isUrlBlocked
 } from './blockerEngine';
 import { FocusProfile } from '@focusflow/shared';
 
@@ -64,3 +65,29 @@ describe('Blocker Engine DeclarativeNetRequest Rules', () => {
     expect(rules).toHaveLength(0);
   });
 });
+
+describe('Blocker Engine URL Matching and Open Tab Purge', () => {
+  const blocked = ['youtube.com', 'reddit.com', 'x.com'];
+  const allowed = ['music.youtube.com'];
+
+  it('correctly matches root domains and subdomains', () => {
+    // Exact match
+    expect(isUrlBlocked('https://youtube.com/watch?v=abc', blocked, allowed)).toBe(true);
+    // Subdomain match
+    expect(isUrlBlocked('https://www.youtube.com/', blocked, allowed)).toBe(true);
+    expect(isUrlBlocked('https://old.reddit.com/r/programming', blocked, allowed)).toBe(true);
+    // Allowed subdomain override
+    expect(isUrlBlocked('https://music.youtube.com/playlist', blocked, allowed)).toBe(false);
+    // Non-blocked domain
+    expect(isUrlBlocked('https://github.com/trending', blocked, allowed)).toBe(false);
+    // Non-http URLs
+    expect(isUrlBlocked('chrome://extensions', blocked, allowed)).toBe(false);
+    expect(isUrlBlocked('about:blank', blocked, allowed)).toBe(false);
+  });
+
+  it('handles invalid or malformed URLs gracefully', () => {
+    expect(isUrlBlocked('', blocked, allowed)).toBe(false);
+    expect(isUrlBlocked('not-a-valid-url', blocked, allowed)).toBe(false);
+  });
+});
+

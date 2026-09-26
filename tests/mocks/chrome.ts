@@ -76,6 +76,25 @@ export function setupChromeMock() {
     },
     notifications: {
       create: vi.fn()
+    },
+    tabs: {
+      query: vi.fn(async () => []),
+      update: vi.fn(async () => {}),
+      create: vi.fn(async () => {}),
+      onUpdated: {
+        addListener: vi.fn()
+      }
+    },
+    offscreen: {
+      createDocument: vi.fn(async () => {})
+    },
+    extension: {
+      isAllowedIncognitoAccess: vi.fn((cb: (allowed: boolean) => void) => cb(true))
+    },
+    commands: {
+      onCommand: {
+        addListener: vi.fn()
+      }
     }
   };
 

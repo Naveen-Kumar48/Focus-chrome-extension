@@ -19,7 +19,9 @@ import {
 } from '../services/timerEngine';
 import {
   activateBlockingRules,
-  deactivateBlockingRules
+  deactivateBlockingRules,
+  purgeBlockedOpenTabs,
+  isUrlBlocked
 } from '../services/blockerEngine';
 
 export const ALARM_TIMER_KEY = 'focusflow-timer-alarm';
@@ -44,7 +46,42 @@ export async function updateToolbarBadge(timer: ActiveTimerState) {
 }
 
 /**
- * Synchronizes website blocking rules with current timer state.
+ * Triggers audio alert using MV3 offscreen document or runtime messaging.
+ */
+export async function triggerAudioAlert(type: 'complete' | 'break' = 'complete'): Promise<void> {
+  if (typeof chrome === 'undefined' || !chrome.runtime) return;
+
+  try {
+    const settings = await storageService.get('settings');
+    if (!settings?.soundEnabled) return;
+
+    if (chrome.offscreen && chrome.offscreen.createDocument) {
+      const offscreenUrl = chrome.runtime.getURL('offscreen.html');
+      const existingContexts = await (chrome.runtime as any).getContexts?.({
+        contextTypes: ['OFFSCREEN_DOCUMENT'],
+        documentUrls: [offscreenUrl]
+      });
+
+      if (!existingContexts || existingContexts.length === 0) {
+        await chrome.offscreen.createDocument({
+          url: 'offscreen.html',
+          reasons: ['AUDIO_PLAYBACK' as chrome.offscreen.Reason],
+          justification: 'Auditory chime alert upon focus session or break completion'
+        });
+      }
+    }
+
+    await chrome.runtime.sendMessage({
+      type: 'PLAY_AUDIO',
+      payload: { type, volume: settings?.soundVolume ?? 0.8 }
+    }).catch(() => {});
+  } catch (err) {
+    console.debug('[FocusFlow Audio] Could not play alert:', err);
+  }
+}
+
+/**
+ * Synchronizes website blocking rules with current timer state and purges open tabs.
  */
 export async function syncBlockingRules(timer: ActiveTimerState) {
   try {
@@ -55,6 +92,7 @@ export async function syncBlockingRules(timer: ActiveTimerState) {
 
       if (profile) {
         await activateBlockingRules(profile);
+        await purgeBlockedOpenTabs(profile);
       }
     } else {
       await deactivateBlockingRules();
@@ -121,6 +159,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await reconcileTimerState();
 
     try {
+      await triggerAudioAlert('complete');
       const settings = await storageService.get('settings');
       if (settings?.notificationsEnabled && chrome.notifications) {
         chrome.notifications.create({
@@ -264,6 +303,22 @@ chrome.runtime.onMessage.addListener(
             break;
           }
 
+          case 'PURGE_OPEN_TABS': {
+            const profiles = await storageService.get('profiles');
+            const activeProfileId = (await storageService.get('activeProfileId')) || currentTimer.profileId;
+            const profile = profiles?.[activeProfileId] || profiles?.[currentTimer.profileId];
+            const count = profile ? await purgeBlockedOpenTabs(profile) : 0;
+            sendResponse({ success: true, data: { purgedCount: count } });
+            break;
+          }
+
+          case 'PLAY_AUDIO': {
+            const payload = message.payload as { type?: 'complete' | 'break'; volume?: number } | undefined;
+            await triggerAudioAlert(payload?.type || 'complete');
+            sendResponse({ success: true });
+            break;
+          }
+
           default:
             sendResponse({ success: true, data: { status: 'acknowledged', type: message.type } });
             break;
@@ -278,3 +333,93 @@ chrome.runtime.onMessage.addListener(
     return true;
   }
 );
+
+// Tab update listener: intercepts client-side SPAs or dynamic navigation during focus sessions
+if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.onUpdated) {
+  chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    const url = changeInfo.url || tab.url;
+    if (!url) return;
+
+    try {
+      const currentTimer = await storageService.get('activeTimer');
+      if (currentTimer?.status === 'running') {
+        const profiles = await storageService.get('profiles');
+        const activeProfileId = (await storageService.get('activeProfileId')) || currentTimer.profileId;
+        const profile = profiles?.[activeProfileId] || profiles?.[currentTimer.profileId];
+
+        if (profile && isUrlBlocked(url, profile.blockedDomains, profile.allowedDomains)) {
+          const domain = new URL(url).hostname;
+          chrome.tabs.update(tabId, {
+            url: chrome.runtime.getURL(`blocked.html?domain=${encodeURIComponent(domain)}`)
+          });
+        }
+      }
+    } catch (err) {
+      console.debug('[FocusFlow] Tab update check error:', err);
+    }
+  });
+}
+
+// Global keyboard shortcuts listener
+if (typeof chrome !== 'undefined' && chrome.commands && chrome.commands.onCommand) {
+  chrome.commands.onCommand.addListener(async (command) => {
+    console.log(`[FocusFlow Command] Executing shortcut: ${command}`);
+    try {
+      const currentTimer = await storageService.get('activeTimer');
+
+      if (command === 'toggle-focus') {
+        if (currentTimer.status === 'running') {
+          const updated = pauseTimer(currentTimer);
+          await storageService.set('activeTimer', updated);
+          await chrome.alarms.clear(ALARM_TIMER_KEY);
+          await updateToolbarBadge(updated);
+          await syncBlockingRules(updated);
+        } else if (currentTimer.status === 'paused') {
+          const updated = resumeTimer(currentTimer);
+          await storageService.set('activeTimer', updated);
+          if (updated.targetEndTime) {
+            await chrome.alarms.create(ALARM_TIMER_KEY, { when: updated.targetEndTime });
+          }
+          await updateToolbarBadge(updated);
+          await syncBlockingRules(updated);
+        } else {
+          const updated = startTimer(currentTimer);
+          await storageService.set('activeTimer', updated);
+          if (updated.targetEndTime) {
+            await chrome.alarms.create(ALARM_TIMER_KEY, { when: updated.targetEndTime });
+          }
+          await updateToolbarBadge(updated);
+          await syncBlockingRules(updated);
+        }
+      } else if (command === 'block-current-tab') {
+        if (chrome.tabs && chrome.tabs.query) {
+          const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+          const activeTab = tabs[0];
+          if (activeTab?.url) {
+            const parsed = new URL(activeTab.url);
+            if (['http:', 'https:'].includes(parsed.protocol)) {
+              let domain = parsed.hostname.toLowerCase();
+              if (domain.startsWith('www.')) domain = domain.slice(4);
+
+              const profiles = (await storageService.get('profiles')) || {};
+              const activeProfileId = (await storageService.get('activeProfileId')) || currentTimer.profileId;
+              const profile = profiles[activeProfileId];
+
+              if (profile && !profile.blockedDomains.includes(domain)) {
+                profile.blockedDomains.push(domain);
+                profiles[activeProfileId] = profile;
+                await storageService.set('profiles', profiles);
+                if (currentTimer.status === 'running') {
+                  await syncBlockingRules(currentTimer);
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.debug('[FocusFlow Command] Error processing command:', err);
+    }
+  });
+}
+

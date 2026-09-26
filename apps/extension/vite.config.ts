@@ -12,6 +12,7 @@ export default defineConfig({
         popup: resolve(__dirname, 'popup.html'),
         options: resolve(__dirname, 'options.html'),
         blocked: resolve(__dirname, 'blocked.html'),
+        offscreen: resolve(__dirname, 'offscreen.html'),
         background: resolve(__dirname, 'src/background/index.ts')
       },
       output: {
