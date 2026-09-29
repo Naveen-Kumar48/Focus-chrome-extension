@@ -169,4 +169,10 @@ See [`docs/roadmap.md`](docs/roadmap.md) for the full breakdown.
 
 ## License
 
-Private — all rights reserved.
+Copyright (C) 2026 Naveen Kumar. All rights reserved.
+
+This repository, including all source code, assets, documentation, design files, and related materials, is the exclusive property of Naveen Kumar and is protected by copyright law and international treaties.
+
+No part of this project may be copied, modified, distributed, sublicensed, sold, or otherwise used, in whole or in part, without the prior written consent of the copyright owner. Any unauthorized reproduction, use, transfer, or distribution is strictly prohibited and may result in civil and criminal penalties under applicable law.
+
+Any use beyond personal evaluation or internal review requires a written license agreement signed by the copyright owner.
