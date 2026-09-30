@@ -1,4 +1,4 @@
-# FocusFlow — Focus Timer & Website Blocker
+# FocusFlow — Focus Timer & Website Blocker(Microsoft Edge Extension)
 
 A production-ready Chrome/Edge extension for deep work. Block distracting websites, run Pomodoro or custom focus timers, and track your productivity — all locally, with zero cloud dependency.
 
@@ -176,3 +176,7 @@ This repository, including all source code, assets, documentation, design files,
 No part of this project may be copied, modified, distributed, sublicensed, sold, or otherwise used, in whole or in part, without the prior written consent of the copyright owner. Any unauthorized reproduction, use, transfer, or distribution is strictly prohibited and may result in civil and criminal penalties under applicable law.
 
 Any use beyond personal evaluation or internal review requires a written license agreement signed by the copyright owner.
+
+---
+
+Developed by Naveen Kumar
