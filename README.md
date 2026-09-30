@@ -1,4 +1,4 @@
-# FocusFlow — Focus Timer & Website Blocker
+# FocusFlow — Focus Timer & Website Blocker(Microsoft Edge Extension)
 
 A production-ready Chrome/Edge extension for deep work. Block distracting websites, run Pomodoro or custom focus timers, and track your productivity — all locally, with zero cloud dependency.
 
