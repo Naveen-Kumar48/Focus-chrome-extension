@@ -143,7 +143,7 @@ Generates production `.zip` packages with SHA-256 checksums in:
 
 No `webRequest`, `cookies`, or arbitrary remote code execution permissions are used. Fully compliant with Chrome and Edge Store policies.
 
----
+--------------------------------------------------
 
 ## Roadmap
 
