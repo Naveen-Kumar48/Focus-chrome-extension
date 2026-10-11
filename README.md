@@ -2,7 +2,7 @@
 
 A production-ready Chrome/Edge extension for deep work. Block distracting websites, run Pomodoro or custom focus timers, and track your productivity — all locally, with zero cloud dependency.
 
----
+----------------------------------
 
 ## Features
 
