@@ -2,8 +2,7 @@
 
 A production-ready Chrome/Edge extension for deep work. Block distracting websites, run Pomodoro or custom focus timers, and track your productivity — all locally, with zero cloud dependency.
 
-----------------------------------
-
+--
 ## Features
 
 - **Focus Timer** — Timestamp-based timer with Start / Pause / Resume / Stop / Reset and presets (15, 25, 45, 60, 90 min)
